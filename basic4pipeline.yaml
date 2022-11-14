@@ -1,0 +1,898 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Deploy a VPC with two public/private subnets and two EC2 Instance,route53
+Parameters:
+  EnvironmentName:
+    Type: String
+    Description: The environment tag is used to designate the Environment Stage of the associated AWS resource.
+    AllowedValues:
+      - dev
+      - test
+      - pre-prod
+      - prod
+    Default: dev
+
+  GitHubOwner:
+    Description: The name of the GitHub user or organization who owns the GitHub repository.
+    Type: String
+    Default: ArundhathiAR
+    AllowedPattern: "[A-Za-z0-9-]+"
+  
+
+  GitHubBranch:
+    Description: The name of the branch where source changes are to be detected.
+    Type: String
+    Default: develop
+    AllowedPattern: "[A-Za-z0-9-]+"
+
+  GitHubRepo:
+    Description: The name of the repository where source changes are to be detected.
+    Type: String 
+    Default: repo2
+
+  GitHubOAuthToken:
+    Type: String
+    NoEcho: true
+    MinLength: 40
+    MaxLength: 40
+    
+     
+
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+   
+
+  BastionInstanceType:
+    Description: EC2 instance type for the bastion host (used for public SSH access).
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+    - t2.nano
+    - t2.micro
+    - t2.small
+    - t2.medium
+    - t2.large
+    - t2.xlarge
+    - t2.2xlarge
+    - t3.nano
+    - t3.micro
+    - t3.small
+    - t3.medium
+    - t3.large
+    - t3.xlarge
+    - t3.2xlarge
+    - t3a.nano
+    - t3a.micro
+    - t3a.small
+    - t3a.medium
+    - t3a.large
+    - t3a.xlarge
+    - t3a.2xlarge
+    - c4.2xlarge
+    - c4.4xlarge
+    - c4.8xlarge
+    - c4.large
+    - c4.xlarge
+    - c5.18xlarge
+    - c5.2xlarge
+    - c5.4xlarge
+    - c5.9xlarge
+    - c5.large
+    - c5.xlarge
+    - c5d.large
+    - c5d.xlarge
+    - c5d.2xlarge
+    - c5d.4xlarge
+    - c5d.9xlarge
+    - c5d.18xlarge
+    - c5n.large
+    - c5n.xlarge
+    - c5n.2xlarge
+    - c5n.4xlarge
+    - c5n.9xlarge
+    - c5n.18xlarge
+    - d2.xlarge
+    - d2.2xlarge
+    - d2.4xlarge
+    - d2.8xlarge
+    - g3.16xlarge
+    - f1.2xlarge
+    - f1.4xlarge
+    - f1.16xlarge
+    - g3.4xlarge
+    - g3.8xlarge
+    - g3.16xlarge
+    - g3s.xlarge
+    - h1.2xlarge
+    - h1.4xlarge
+    - h1.8xlarge
+    - h1.16xlarge
+    - i3.16xlarge
+    - i3.2xlarge
+    - i3.4xlarge
+    - i3.8xlarge
+    - i3.xlarge
+    - i3.large
+    - i3.metal
+    - i3.xlarge
+    - m4.10xlarge
+    - m4.16xlarge
+    - m4.2xlarge
+    - m4.4xlarge
+    - m4.large
+    - m4.xlarge
+    - m5.12xlarge
+    - m5.24xlarge
+    - m5.2xlarge
+    - m5.4xlarge
+    - m5.large
+    - m5.xlarge
+    - m5a.12xlarge
+    - m5a.24xlarge
+    - m5a.2xlarge
+    - m5a.large
+    - m5a.xlarge
+    - m5d.12xlarge
+    - m5d.24xlarge
+    - m5d.2xlarge
+    - m5d.4xlarge
+    - m5d.large
+    - m5d.xlarge
+    - p2.16xlarge
+    - p2.8xlarge
+    - p2.xlarge
+    - p3.16xlarge
+    - p3.2xlarge
+    - p3.8xlarge
+    - p3dn.24xlarge
+    - r3.2xlarge
+    - r3.4xlarge
+    - r3.8xlarge
+    - r3.large
+    - r3.xlarge
+    - r4.16xlarge
+    - r4.2xlarge
+    - r4.4xlarge
+    - r4.8xlarge
+    - r4.large
+    - r4.xlarge
+    - r5.large
+    - r5.xlarge
+    - r5.2xlarge
+    - r5.4xlarge
+    - r5.12xlarge
+    - r5.24xlarge
+    - r5a.large
+    - r5a.xlarge
+    - r5a.2xlarge
+    - r5a.4xlarge
+    - r5a.12xlarge
+    - r5a.24xlarge
+    - r5d.xlarge
+    - r5d.2xlarge
+    - r5d.4xlarge
+    - r5d.12xlarge
+    - r5d.24xlarge
+    - x1.16xlarge
+    - x1.32xlarge
+    - x1e.xlarge
+    - x1e.2xlarge
+    - x1e.4xlarge
+    - x1e.8xlarge
+    - x1e.16xlarge
+    - x1e.32xlarge
+    - u-6tb1.metal
+    - u-9tb1.metal
+    - u-12tb1.metal
+    - z1d.large
+    - z1d.xlarge
+    - z1d.2xlarge
+    - z1d.3xlarge
+    - z1d.6xlarge
+    - z1d.12xlarge
+    ConstraintDescription: must be a valid Current Generation EC2 instance type.
+
+  WebInstanceType:
+    Description: WebServer EC2 instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues: [t2.nano, t2.micro, t2.small, t2.medium, t2.large, t2.xlarge, t2.2xlarge,
+      t3.nano, t3.micro, t3.small, t3.medium, t3.large, t3.xlarge, t3.2xlarge,
+      m4.large, m4.xlarge, m4.2xlarge, m4.4xlarge, m4.10xlarge,
+      m5.large, m5.xlarge, m5.2xlarge, m5.4xlarge,
+      c5.large, c5.xlarge, c5.2xlarge, c5.4xlarge, c5.9xlarge,
+      g3.8xlarge,
+      r5.large, r5.xlarge, r5.2xlarge, r5.4xlarge, r3.12xlarge,
+      i3.xlarge, i3.2xlarge, i3.4xlarge, i3.8xlarge,
+      d2.xlarge, d2.2xlarge, d2.4xlarge, d2.8xlarge]
+    ConstraintDescription: must be a valid EC2 instance type.
+
+  ACMcertificateArn:
+    Type: String
+    Description: The ACM certificate arn for the domain. Eg- arn:aws:acm:ap-south-1:239189448851:certificate/437b89e3-c030-4b57-929c-080cabf5300a
+    Default: arn:aws:acm:ap-south-1:816734039267:certificate/0c4ced7d-6bd5-4287-9908-fce67e28562b  
+
+  DomainName:
+    Type: String
+    Default: keturahtech.online
+       
+  LatestAmiId:
+      Type:  'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+      Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.192.0.0/16 
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} VPC
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGatewayEIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} NATGateway
+
+  NatGatewayEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: VPC
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} InternetGateway
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId:  !Ref VPC
+
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: 10.192.20.0/24
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} PublicSubnet1 
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: 10.192.10.0/24
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} PublicSubnet2 
+         
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: 10.192.21.0/24
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} PrivateSubnet1
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: 10.192.22.0/24
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} PrivateSubnet2 
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} PublicRouteTable
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+  
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} PrivateRoutesTable 
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet1
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet2
+
+  Bastion:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: !Ref BastionInstanceType
+      NetworkInterfaces:
+      - AssociatePublicIpAddress: true
+        DeleteOnTermination: true
+        DeviceIndex: 0
+        SubnetId: !Ref PublicSubnet1
+        GroupSet:
+        - Ref: BastionSecurityGroup
+      KeyName: !Ref KeyName
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Bastion
+      UserData:
+        Fn::Base64: !Sub |
+          # Install mysql client
+          yum install mysql -y
+
+          # install git
+          yum install git -y     
+
+  BastionSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Enable HTTP access via port 80 locked down to the load balancer + SSH access and HTTPS"
+      VpcId:  !Ref VPC
+      SecurityGroupIngress:
+      - CidrIp: 0.0.0.0/0
+        FromPort: 80
+        IpProtocol: tcp
+        ToPort: 80
+      - CidrIp: 0.0.0.0/0
+        FromPort: 22
+        IpProtocol: tcp
+        ToPort: 22    
+      - CidrIp: 0.0.0.0/0
+        FromPort: 443
+        IpProtocol: tcp
+        ToPort: 443  
+  
+  FrontEndSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Enable HTTP access via port 80 locked down to the load balancer + SSH access + Nginx"
+      VpcId:  !Ref VPC
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22    
+        - CidrIp: 0.0.0.0/0
+          FromPort: 4200
+          IpProtocol: tcp
+          ToPort: 4200 
+        - CidrIp: 0.0.0.0/0
+          FromPort: 4201
+          IpProtocol: tcp
+          ToPort: 4201
+        - CidrIp: 0.0.0.0/0
+          FromPort: 4202
+          IpProtocol: tcp
+          ToPort: 4202
+        - CidrIp: 0.0.0.0/0
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+
+
+  BackEndSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Enable HTTP access via port 80 locked down to the load balancer + SSH access + MYSQL"
+      VpcId:  !Ref VPC
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+        - CidrIp: 0.0.0.0/0
+          FromPort: 8080
+          IpProtocol: tcp
+          ToPort: 8080 
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22               
+
+
+  FrontEndServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref WebInstanceType
+      NetworkInterfaces:
+      - AssociatePublicIpAddress: false
+        DeleteOnTermination: true
+        DeviceIndex: 0
+        SubnetId: !Ref PrivateSubnet1
+        GroupSet:
+        - Ref: FrontEndSecurityGroup
+      KeyName: !Ref 'KeyName'
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} FrontEnd Server
+      ImageId: !Ref LatestAmiId
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          # install code-deploy agent
+          yum install ruby wget -y
+          wget https://aws-codedeploy-ap-south-1.s3.ap-south-1.amazonaws.com/latest/install
+          chmod +x ./install
+          ./install auto
+          service codedeploy-agent enable
+          service codedeploy-agent status
+   
+      
+  
+  BackEndServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref 'WebInstanceType'
+      NetworkInterfaces:
+      - AssociatePublicIpAddress: false
+        DeleteOnTermination: true
+        DeviceIndex: 0
+        SubnetId: !Ref PrivateSubnet2
+        GroupSet:
+        - Ref: BackEndSecurityGroup
+      KeyName: !Ref 'KeyName'
+      ImageId: !Ref LatestAmiId
+      Tags:
+      - Key: Name
+        Value: !Sub ${EnvironmentName} BackEnd Server
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          # install code-deploy agent
+          yum install ruby wget -y
+          wget https://aws-codedeploy-ap-south-1.s3.ap-south-1.amazonaws.com/latest/install
+          chmod +x ./install
+          ./install auto
+          service codedeploy-agent enable
+          service codedeploy-agent status
+
+ #LoadBalancer Section      
+      
+  ApplicationLoadBalancer:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    DependsOn: InternetGateway
+    Properties:
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: ${AWS::StackName}-ALB
+
+  HttpListener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      DefaultActions:
+        - Type: "redirect"
+          RedirectConfig:
+              Protocol: "HTTPS"
+              Port: "443"
+              Host: "#{host}"
+              Path: "/index.html"
+              Query: "#{query}"
+              StatusCode: "HTTP_301"
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  HttpsListener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      DefaultActions:
+        - Type: forward
+          ForwardConfig: 
+            TargetGroups: 
+              - TargetGroupArn: !Ref ALBTargetGroup
+                Weight: 1
+            TargetGroupStickinessConfig: 
+              Enabled: true
+              DurationSeconds: 86400
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Certificates: 
+      - CertificateArn: !Ref ACMcertificateArn
+      Port: '443'
+      Protocol: HTTPS
+
+  ALBSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: HTTP from anywhere
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: 
+            Fn::Sub: ${AWS::StackName}-ALB-SG
+      VpcId: !Ref VPC
+
+  ALBTargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      HealthCheckIntervalSeconds: 15
+      HealthCheckPath: '/index.html'
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      Targets:
+        - Id: !Ref FrontEndServer
+          Port: 80
+      Matcher:
+        HttpCode: '200-299'
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref VPC
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 60
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: ${AWS::StackName}-BillALBTg
+
+# Route53         
+  Route53LoadBalancerAlias:
+    Type: 'AWS::Route53::RecordSet'
+    DependsOn: ApplicationLoadBalancer
+    Properties:
+      HostedZoneName: !Join ['', [!Ref DomainName, '.']]
+      Name: !Join ['', [!Ref DomainName, '.']]
+      Type: A
+      # TTL: '60'
+      AliasTarget:
+        DNSName: !GetAtt 
+          - ApplicationLoadBalancer
+          - DNSName
+        EvaluateTargetHealth: false
+        HostedZoneId: !GetAtt 
+          - ApplicationLoadBalancer
+          - CanonicalHostedZoneID
+
+
+#Codepipeline
+
+  PipelineArtifactStoreBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref PipelineArtifactStoreBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Deny
+            Action:
+              - "s3:*"
+            Resource:
+             - !Sub "arn:aws:s3:::${PipelineArtifactStoreBucket}/*"
+            Principal: "*"
+            Condition:
+              Bool:
+                aws:SecureTransport: false        
+
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore:
+        Type: S3
+        Location: !Ref PipelineArtifactStoreBucket
+      RestartExecutionOnUpdate: true
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      Stages:
+        - Name: Source
+          Actions:
+          - Name: Source
+            InputArtifacts: []
+            ActionTypeId:
+              Category: Source
+              Owner: ThirdParty
+              Version: 1
+              Provider: GitHub
+            OutputArtifacts:
+            - Name: SourceCode
+            Configuration:
+              Owner: !Ref GitHubOwner
+              Repo: !Ref GitHubRepo
+              Branch: !Ref GitHubBranch
+              PollForSourceChanges: false
+              OAuthToken: !Ref GitHubOAuthToken
+            RunOrder: 1
+      # Build and Deploy, etc., stages would follow. Here is an example
+        - Name: Deploy
+          Actions:
+          - Name: DeployAction
+            InputArtifacts:
+              - Name: SourceCode
+            ActionTypeId:
+              Category: Deploy
+              Owner: AWS
+              Version: 1
+              Provider: CodeDeploy
+            Configuration:
+              ApplicationName: !Ref CodeDeployApplication
+              DeploymentGroupName: !Ref DeploymentGroup
+            RunOrder: 1
+
+  # 'GithubWebhook' satisfies two requirements:
+  # -- Means that updates are pushed from GitHub, rather than AWS having to poll
+  # -- Means we can filter for required changes
+  
+  PipelineWebhook:
+    Type: 'AWS::CodePipeline::Webhook'
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: !Ref GitHubOAuthToken
+      RegisterWithThirdParty: true
+      Filters:
+      - JsonPath: "$.ref"
+        MatchEquals: refs/heads/{Branch}
+      TargetPipeline: !Ref CodePipeline
+      TargetAction: Source
+      Name: PipelineWebhook
+      TargetPipelineVersion: !GetAtt CodePipeline.Version
+     
+
+  CodeDeployApplication: 
+    Type: AWS::CodeDeploy::Application 
+    Properties:
+      ComputePlatform: Server 
+
+  CodePipelineServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+            Action: sts:AssumeRole            
+         
+      Path: /
+      Policies:
+        - PolicyName: AWS-CodePipeline-Service-3
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:DeleteObject"
+                  - "s3:GetObject"
+                  - "s3:GetObjectVersion"
+                  - "s3:ListBucket"
+                  - "s3:PutObject"
+                  - "s3:GetBucketPolicy"
+                Resource:
+                  - Fn::Sub: arn:aws:s3:::${PipelineArtifactStoreBucket}
+                  - Fn::Sub: arn:aws:s3:::${PipelineArtifactStoreBucket}/*
+              - Effect: Allow
+                Action:
+                  - 'codecommit:CancelUploadArchive'
+                  - 'codecommit:GetBranch'
+                  - 'codecommit:GetCommit'
+                  - 'codecommit:GetUploadArchiveStatus'
+                  - 'codecommit:UploadArchive'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'codedeploy:CreateDeployment'
+                  - 'codedeploy:GetApplicationRevision'
+                  - 'codedeploy:GetDeployment'
+                  - 'codedeploy:GetDeploymentConfig'
+                  - 'codedeploy:RegisterApplicationRevision'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'codebuild:BatchGetBuilds'
+                  - 'codebuild:StartBuild'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'devicefarm:ListProjects'
+                  - 'devicefarm:ListDevicePools'
+                  - 'devicefarm:GetRun'
+                  - 'devicefarm:GetUpload'
+                  - 'devicefarm:CreateUpload'
+                  - 'devicefarm:ScheduleRun'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'lambda:InvokeFunction'
+                  - 'lambda:ListFunctions'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'iam:PassRole'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'elasticbeanstalk:*'
+                  - 'ec2:*'
+                  - 'elasticloadbalancing:*'
+                  - 'autoscaling:*'
+                  - 'cloudwatch:*'
+                  - 's3:*'
+                  - 'sns:*'
+                  - 'cloudformation:*'
+                  - 'rds:*'
+                  - 'sqs:*'
+                  - 'ecs:*'
+                Resource: '*'
+
+  DeploymentGroup: 
+    Type: AWS::CodeDeploy::DeploymentGroup 
+    DependsOn: BackEndServer
+    Properties:
+      ApplicationName: 
+        Ref: CodeDeployApplication 
+      DeploymentConfigName: CodeDeployDefault.AllAtOnce
+      Ec2TagFilters: 
+        -
+          Key: "Name"
+          Value: "BackEnd API Server"
+          Type: "KEY_AND_VALUE" 
+      ServiceRoleArn: 
+        Fn::GetAtt: [ CodeDeployServiceRole, Arn ]
+
+  AppInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+                - codedeploy.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: AWS-CodePipeline-Service-3
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:DeleteObject"
+                  - "s3:GetObject"
+                  - "s3:GetObjectVersion"
+                  - "s3:ListBucket"
+                  - "s3:PutObject"
+                  - "s3:GetBucketPolicy"
+                Resource:
+                  - Fn::Sub: arn:aws:s3:::${PipelineArtifactStoreBucket}
+                  - Fn::Sub: arn:aws:s3:::${PipelineArtifactStoreBucket}/*
+              - Effect: Allow
+                Action:
+                  - "secretsmanager:GetResourcePolicy"
+                  - "secretsmanager:GetSecretValue"
+                  - "secretsmanager:DescribeSecret"
+                  - "secretsmanager:ListSecretVersionIds"
+                  - "secretsmanager:ListSecrets"
+                Resource: '*'
+        - PolicyName: CloudWatch_PutMetricData
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Sid: CloudWatchPutMetricData
+              Effect: Allow
+              Action:
+              - cloudwatch:PutMetricData
+              Resource:
+              - "*"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/EC2InstanceConnect
+
+  InstanceRoleInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref 'AppInstanceRole'
+
+  CodeDeployServiceRole:
+    Type: AWS::IAM::Role
+    Description: Creating service role in IAM for AWS CodeDeploy
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: "codedeploy.amazonaws.com"
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+
+Outputs:
+  BastionIP:
+    Description:  IP address of the Bastion Instance
+    Value: !GetAtt [Bastion, PublicIp]
+  Keyname:
+    Description: 'Name of an existing EC2 KeyPair to enable SSH access to the instance'
+    Value: !Ref KeyName
+
+       
